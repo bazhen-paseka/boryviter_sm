@@ -24,11 +24,13 @@
 *								INCLUDE FILES
 **************************************************************************
 */
-	#include "stm32f1xx_hal.h"
+	#include "main.h"
 	#include "gpio.h"
 	#include "usart.h"
 	#include "stdio.h"
 	#include <string.h>
+
+	#include "boryviter_local_config.h"
 
 /*
 **************************************************************************

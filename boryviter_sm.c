@@ -68,14 +68,14 @@
 */
 
 void BoryViter_Init(void) {
-	#define SOFT_VERSION 123
+
 	int soft_version_arr_int[3];
 	soft_version_arr_int[0] = ((SOFT_VERSION) / 100) %10 ;
 	soft_version_arr_int[1] = ((SOFT_VERSION) /  10) %10 ;
 	soft_version_arr_int[2] = ((SOFT_VERSION)      ) %10 ;
 
 	char DataChar[100];
-	sprintf(DataChar,"\r\n\tBoryViter 2020-march-27 v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n\r\n",
+	sprintf(DataChar,"\r\n\tBoryViter 2020-April-10 v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n\r\n",
 			soft_version_arr_int[0], soft_version_arr_int[1], soft_version_arr_int[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
@@ -83,8 +83,12 @@ void BoryViter_Init(void) {
 //************************************************************************
 
 void BoryViter_Main(void) {
-	  HAL_GPIO_TogglePin(LED_BOARD_GPIO_Port,LED_BOARD_Pin);
-	  HAL_Delay(1100);
+	int cnt = 2020;
+	char DataChar[100];
+	sprintf(DataChar,"BoryViter %04d\r\n", cnt++);
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+	HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+	HAL_Delay(1000);
 }
 //-------------------------------------------------------------------------------------------------
 
