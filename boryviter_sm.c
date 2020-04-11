@@ -54,6 +54,11 @@
 **************************************************************************
 */
 
+	bh1750_struct h1_bh1750 =
+	{
+		.i2c = &hi2c1,
+		.device_i2c_address = BH1750_I2C_ADDR
+	};
 
 /*
 **************************************************************************
@@ -79,6 +84,10 @@ void BoryViter_Init(void) {
 			soft_version_arr_int[0], soft_version_arr_int[1], soft_version_arr_int[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
+		HAL_StatusTypeDef res = BH1750_Init( &h1_bh1750 );
+		sprintf(DataChar,"\r\n\tBH1750 init status: %d;\r\n", (int)res);
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
 }
 //************************************************************************
 
@@ -88,6 +97,11 @@ void BoryViter_Main(void) {
 	sprintf(DataChar,"BoryViter %04d\r\n", cnt++);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
+		uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
+		sprintf(DataChar,"lux: %d; \r\n", (int)lux_u16);
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
 	HAL_Delay(1000);
 }
 //-------------------------------------------------------------------------------------------------

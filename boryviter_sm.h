@@ -27,10 +27,12 @@
 	#include "main.h"
 	#include "gpio.h"
 	#include "usart.h"
+	#include "i2c.h"
 	#include "stdio.h"
 	#include <string.h>
 
 	#include "boryviter_local_config.h"
+	#include "bh1750_sm.h"
 
 /*
 **************************************************************************
