@@ -60,6 +60,9 @@
 		.device_i2c_address = BH1750_I2C_ADDR
 	};
 
+	RTC_TimeTypeDef TimeSt;
+	RTC_DateTypeDef DateSt;
+
 /*
 **************************************************************************
 *                        LOCAL FUNCTION PROTOTYPES
@@ -84,23 +87,35 @@ void BoryViter_Init(void) {
 			soft_version_arr_int[0], soft_version_arr_int[1], soft_version_arr_int[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-		HAL_StatusTypeDef res = BH1750_Init( &h1_bh1750 );
-		sprintf(DataChar,"\r\n\tBH1750 init status: %d;\r\n", (int)res);
-		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+	HAL_StatusTypeDef res = BH1750_Init( &h1_bh1750 );
+	sprintf(DataChar,"\r\n\tBH1750 init status: %d;\r\n", (int)res);
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+	I2Cdev_init(&hi2c1);
+	I2C_ScanBusFlow(&hi2c1, &huart1);
+
+	//	Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x12, 0x20, 0x15, 0x36);
+	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
+	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
+	ds3231_PrintTime( &TimeSt, &huart1);
+	ds3231_PrintDate( &DateSt, &huart1);
 
 }
 //************************************************************************
 
 void BoryViter_Main(void) {
-	int cnt = 2020;
 	char DataChar[100];
-	sprintf(DataChar,"BoryViter %04d\r\n", cnt++);
-	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
-		uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
-		sprintf(DataChar,"lux: %d; \r\n", (int)lux_u16);
-		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
+	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
+	ds3231_PrintDate( &DateSt, &huart1);
+	ds3231_WeekDay  ( &DateSt, &huart1);
+	ds3231_PrintTime( &TimeSt, &huart1);
+
+	uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
+	sprintf(DataChar," Lux: %04d; \r\n", (int)lux_u16);
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
 	HAL_Delay(1000);
 }
