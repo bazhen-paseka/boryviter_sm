@@ -68,6 +68,7 @@
 	uint8_t alarm_2_status	= 0 ;
 
 	uint8_t eeprom_button_flag = 0;
+	uint16_t eeprom_packet_u16 = 0;
 
 /*
 **************************************************************************
@@ -121,9 +122,20 @@ void BoryViter_Main(void) {
 	char DataChar[100];
 
 	if (eeprom_button_flag == 1) {
+		eeprom_button_flag = 0;
+
 		sprintf(DataChar,"Read from EEPROM: \r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-		eeprom_button_flag = 0;
+
+		for (int p=0; p<eeprom_packet_u16; p++) {
+			uint8_t str[32] = {0};
+			Read_from_EEPROM(str, 32, p);
+			HAL_UART_Transmit(&huart1, (uint8_t *)str, 32, 100);
+		}
+
+		sprintf(DataChar,"Read from EEPROM Finish. \r\n");
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
 	}
 
 	if (alarm_flag == 1) {
@@ -147,21 +159,29 @@ void BoryViter_Main(void) {
 		alarm_1_status = 0;
 	}
 
-	if (alarm_2_status == 1){
-		sprintf(DataChar,"alarm_2_status; \r\n");
+	if (alarm_2_status == 1) {
+		alarm_2_status = 0;
+		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
 
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 		ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
-		ds3231_PrintDate( &DateSt, &huart1);
-		ds3231_PrintWeek( &DateSt, &huart1);
-		ds3231_PrintTime( &TimeSt, &huart1);
-
 		uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
-		sprintf(DataChar," Lux: %04d; \r\n", (int)lux_u16);
-		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
-		alarm_2_status = 0;
+		uint8_t str[32] = {0};
+		sprintf((char *) str, "%04d) %04d/%02d/%02d %02d:%02d:%02d %04d\r\n",
+				(int) eeprom_packet_u16,
+				(int) (DateSt.Year+2000),
+				(int) DateSt.Month,
+				(int) DateSt.Date,
+				(int) TimeSt.Hours,
+				(int) TimeSt.Minutes,
+				(int) TimeSt.Seconds,
+				(int) lux_u16	);
+		uint8_t size_of_str_u8 = sizeof(str) / sizeof(str[0]);
+		HAL_UART_Transmit(&huart1, (uint8_t *)str, size_of_str_u8, 100);
+
+		Write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
+		eeprom_packet_u16++;
 	}
 }
 //************************************************************************
