@@ -68,10 +68,6 @@
 	void BoryViter_Init(void);
 	void BoryViter_Main(void);
 
-	void BoryViter_Alarm_1_Set_StatusBit (uint8_t _status_u8);
-	void BoryViter_Alarm_2_Set_StatusBit (uint8_t _status_u8);
-
-	uint8_t BoryViter_Alarm_1_Get_StatusBit (void);
-	uint8_t BoryViter_Alarm_2_Get_StatusBit (void);
+	void BoryViter_Set_Alarm_Flag (void);
 
 #endif /* MAX30100_SM_H_INCLUDED */

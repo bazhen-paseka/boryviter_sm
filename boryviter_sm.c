@@ -63,8 +63,9 @@
 	RTC_TimeTypeDef TimeSt;
 	RTC_DateTypeDef DateSt;
 
-	uint8_t alarm_1_status_bit = 0;
-	uint8_t alarm_2_status_bit = 0;
+	uint8_t alarm_flag		= 0 ;
+	uint8_t alarm_1_status	= 0 ;
+	uint8_t alarm_2_status	= 0 ;
 
 /*
 **************************************************************************
@@ -104,68 +105,39 @@ void BoryViter_Init(void) {
 	sprintf(DataChar,"\r\nBH1750 init status: %d;\r\n", (int)res);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-
-//************************************************************************
-//************************************************************************
-
-	/* Arrays for operating with strings */
-	uint8_t str[32] = {0};
-	uint8_t buf[32] = {0};
-
-	uint32_t uid[3];	/* Array for storing unique 96 bit chip identifier */
-
-	uint16_t EEPROM_Memory_Address_u16 = 0x20 ;
-
-	//			HAL_GetUID(uid);	Unique Device Identifier. UID based on 96 bits.
-		uid[0] = HAL_GetUIDw0();
-		uid[1] = HAL_GetUIDw1();
-		uid[2] = HAL_GetUIDw2();
-
-		sprintf(DataChar,"UID: %X %X %X \r\n\r\n", (int)uid[0], (int)uid[1], (int)uid[2] );
-		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-
-
-		for (uint32_t i = 0; i < 5; i++) {
-			sprintf((char *) str, "Hello, BoryViter: #%3d ", rand() % 1000);
-			HAL_UART_Transmit(&huart1, (uint8_t *)str, sizeof(str) / sizeof(str[0]), 100);
-			/* EEPROM write */
-			if (HAL_I2C_Mem_Write(&hi2c1, EEPROM_DEVICE_ADDRESS, 10+EEPROM_Memory_Address_u16, I2C_MEMADD_SIZE_16BIT, str, sizeof(str) / sizeof(str[0]), 100) == HAL_OK) {
-				sprintf(DataChar,"EEPROM write: OK.\r\n");
-				HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-			} else {
-				sprintf(DataChar,"EEPROM write - error.\r\n");
-				HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-			}
-
-			while (HAL_I2C_IsDeviceReady(&hi2c1, EEPROM_DEVICE_ADDRESS, 100, 100) != HAL_OK);				/* Wait till device ready */
-
-			/* EEPROM read */
-			if (HAL_I2C_Mem_Read(&hi2c1, EEPROM_DEVICE_ADDRESS, EEPROM_Memory_Address_u16, I2C_MEMADD_SIZE_16BIT, (uint8_t *)buf, sizeof(buf) / sizeof(buf[0]), 100) == HAL_OK) {
-				sprintf(DataChar,"Reading text: OK.\r\n");
-			} else {
-				sprintf(DataChar,"Reading text: error.\r\n\r\n");
-			}
-			/* Now buf[] has "Hello, TechMaker! #xxx\0" text */
-			HAL_UART_Transmit(&huart1, (uint8_t *)buf, sizeof(buf) / sizeof(buf[0]), 100);
-			HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-		}
-
-//************************************************************************
-//************************************************************************
-
-	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x00);
-	HAL_Delay(100);
-	ds3231_Alarm1_SetEverySeconds(ADR_I2C_DS3231);
-	HAL_Delay(100);
-	ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
-
+	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x00);		HAL_Delay(10);
+	ds3231_Alarm1_SetEverySeconds (ADR_I2C_DS3231);		HAL_Delay(10);
+	ds3231_Alarm1_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
+	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);		HAL_Delay(10);
+	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
 }
 //************************************************************************
 
 void BoryViter_Main(void) {
-	if (BoryViter_Alarm_1_Get_StatusBit() == 1) {
+	if (alarm_flag == 1) {
+		alarm_1_status = ds3231_Get_Alarm1_Status (ADR_I2C_DS3231);
+		alarm_2_status = ds3231_Get_Alarm2_Status (ADR_I2C_DS3231);
+		alarm_flag = 0;
+	}
+
+	if (alarm_1_status == 1){
 		char DataChar[100];
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+
+		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
+		ds3231_PrintTime( &TimeSt, &huart1);
+
+		uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
+		sprintf(DataChar," Lux: %04d; \r\n", (int)lux_u16);
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
+		alarm_1_status = 0;
+	}
+
+	if (alarm_2_status == 1){
+		char DataChar[100];
+		sprintf(DataChar,"alarm_2_status; \r\n");
 
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 		ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
@@ -177,35 +149,15 @@ void BoryViter_Main(void) {
 		sprintf(DataChar," Lux: %04d; \r\n", (int)lux_u16);
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-	//	HAL_Delay(1000);
-	//	sprintf(DataChar,"RTC_bit: %d; \r\n", (int)alarm_1_status_bit);
-	//	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-		BoryViter_Alarm_1_Set_StatusBit(0);
-		//ds3231_Alarm1_SetEverySeconds(ADR_I2C_DS3231);
-		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
+		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
+		alarm_2_status = 0;
 	}
 }
 //************************************************************************
 
-void BoryViter_Alarm_1_Set_StatusBit (uint8_t _status_u8) {
-	alarm_1_status_bit = _status_u8 ;
+void BoryViter_Set_Alarm_Flag (void) {
+	alarm_flag = 1 ;
 }
-//-----------------------------------------------------------
-
-void BoryViter_Alarm_2_Set_StatusBit (uint8_t _status_u8) {
-	alarm_2_status_bit = _status_u8 ;
-}
-//-----------------------------------------------------------
-
-uint8_t BoryViter_Alarm_1_Get_StatusBit (void) {
-	return alarm_1_status_bit ;
-}
-//-----------------------------------------------------------
-
-uint8_t BoryViter_Alarm_2_Get_StatusBit (void) {
-	return alarm_2_status_bit ;
-}
-//************************************************************************
 
 /*
 **************************************************************************
