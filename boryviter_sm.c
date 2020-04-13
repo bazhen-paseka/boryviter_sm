@@ -93,7 +93,7 @@ void BoryViter_Init(void) {
 	I2Cdev_init(&hi2c1);
 	I2C_ScanBusFlow(&hi2c1, &huart1);
 
-	Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x12, 0x21, 0x15, 0x36);
+	//Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x13, 0x17, 0x05, 0x36);
 	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
 
@@ -110,6 +110,8 @@ void BoryViter_Init(void) {
 	ds3231_Alarm1_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
 	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);		HAL_Delay(10);
 	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
+
+	HAL_IWDG_Refresh(&hiwdg);
 }
 //************************************************************************
 
@@ -121,6 +123,8 @@ void BoryViter_Main(void) {
 	}
 
 	if (alarm_1_status == 1){
+		HAL_IWDG_Refresh(&hiwdg);
+
 		char DataChar[100];
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
