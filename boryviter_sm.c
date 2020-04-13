@@ -67,6 +67,8 @@
 	uint8_t alarm_1_status	= 0 ;
 	uint8_t alarm_2_status	= 0 ;
 
+	uint8_t eeprom_button_flag = 0;
+
 /*
 **************************************************************************
 *                        LOCAL FUNCTION PROTOTYPES
@@ -93,7 +95,7 @@ void BoryViter_Init(void) {
 	I2Cdev_init(&hi2c1);
 	I2C_ScanBusFlow(&hi2c1, &huart1);
 
-	//Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x13, 0x17, 0x05, 0x36);
+	//Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x13, 0x17, 0x18, 0x36);
 	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
 
@@ -116,6 +118,14 @@ void BoryViter_Init(void) {
 //************************************************************************
 
 void BoryViter_Main(void) {
+	char DataChar[100];
+
+	if (eeprom_button_flag == 1) {
+		sprintf(DataChar,"Read from EEPROM: \r\n");
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		eeprom_button_flag = 0;
+	}
+
 	if (alarm_flag == 1) {
 		alarm_1_status = ds3231_Get_Alarm1_Status (ADR_I2C_DS3231);
 		alarm_2_status = ds3231_Get_Alarm2_Status (ADR_I2C_DS3231);
@@ -124,8 +134,6 @@ void BoryViter_Main(void) {
 
 	if (alarm_1_status == 1){
 		HAL_IWDG_Refresh(&hiwdg);
-
-		char DataChar[100];
 		HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
@@ -140,7 +148,6 @@ void BoryViter_Main(void) {
 	}
 
 	if (alarm_2_status == 1){
-		char DataChar[100];
 		sprintf(DataChar,"alarm_2_status; \r\n");
 
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
@@ -161,6 +168,11 @@ void BoryViter_Main(void) {
 
 void BoryViter_Set_Alarm_Flag (void) {
 	alarm_flag = 1 ;
+}
+//************************************************************************
+
+void BoryViter_Set_EEPROM_Button (void) {
+	eeprom_button_flag = 1 ;
 }
 
 /*

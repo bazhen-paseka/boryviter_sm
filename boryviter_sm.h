@@ -66,9 +66,10 @@
 *                              FUNCTION PROTOTYPES
 **************************************************************************
 */
-	void BoryViter_Init(void);
-	void BoryViter_Main(void);
+	void BoryViter_Init (void);
+	void BoryViter_Main (void);
 
-	void BoryViter_Set_Alarm_Flag (void);
+	void BoryViter_Set_Alarm_Flag	(void);
+	void BoryViter_Set_EEPROM_Button(void);
 
 #endif /* MAX30100_SM_H_INCLUDED */
