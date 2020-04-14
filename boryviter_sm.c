@@ -98,9 +98,17 @@ void BoryViter_Init(void) {
 	I2Cdev_init(&hi2c1);
 	I2C_ScanBusFlow(&hi2c1, &huart1);
 
-	//Set_Date_and_Time_to_DS3231(0x20, 0x04, 0x13, 0x17, 0x18, 0x36);
 	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
+
+	if ((DateSt.Month == 1) && ( DateSt.Date == 1) && ( TimeSt.Minutes == 0 ) && ( TimeSt.Hours ==0)) {
+		sprintf(DataChar, "Time and Day is wrong. We set new!!!\r\n\r\n" );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+		Set_Date_and_Time_to_DS3231(2020, 4, 14, 16, 29, 30);
+		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
+		ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
+	}
 
 	ds3231_PrintDate( &DateSt, &huart1);
 	ds3231_PrintWeek( &DateSt, &huart1);
@@ -113,28 +121,23 @@ void BoryViter_Init(void) {
 	sprintf(DataChar,"\r\nPACKET_END: %d;\r\n", (int)PACKET_END);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-	//for (int p=PACKET_START; p<=PACKET_END; p++) {
 	uint16_t packet = PACKET_START;
 	uint8_t packet_char = 0;
-
 	do {
 		uint8_t str[32] = {0};
 		Read_from_EEPROM(str, EEPROM_PACKET_SIZE, packet);
 		packet_char= str[0];
 		packet++;
 	} while ((packet < PACKET_END) && (packet_char==MAGIK_CHAR));	// if true - do it again
-
-	sprintf(DataChar, "packet in EEPROM: %d \r\n\r\n", (int)(packet-1));
+	eeprom_packet_u16 = packet-1;
+	sprintf(DataChar, "packet in EEPROM: %d \r\n\r\n", (int)(eeprom_packet_u16-PACKET_START));
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-	eeprom_packet_u16 = packet-1;
-
-	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x00);		HAL_Delay(10);
-	ds3231_Alarm1_SetEverySeconds (ADR_I2C_DS3231);		HAL_Delay(10);
-	ds3231_Alarm1_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
-
-	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);		HAL_Delay(10);
-	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);		HAL_Delay(10);
+	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x00);
+	ds3231_Alarm1_SetEverySeconds (ADR_I2C_DS3231);
+	ds3231_Alarm1_ClearStatusBit  (ADR_I2C_DS3231);
+	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);
+	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);
 
 	HAL_IWDG_Refresh(&hiwdg);
 }
@@ -153,10 +156,14 @@ void BoryViter_Main(void) {
 		sprintf(DataChar,"\r\n\tRead from EEPROM: \r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-		for (int p=PACKET_START; p<eeprom_packet_u16; p++) {
-			uint8_t str[32] = {0};
+		for (int pkt_int = PACKET_START; pkt_int < eeprom_packet_u16; pkt_int++) {
+
+			sprintf(DataChar,"%d) ", (int)(pkt_int-PACKET_START) );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+			uint8_t str[EEPROM_PACKET_SIZE] = {0};
 			HAL_StatusTypeDef operation_result_td = HAL_ERROR;
-			operation_result_td = Read_from_EEPROM(str, EEPROM_PACKET_SIZE, p);
+			operation_result_td = Read_from_EEPROM(str, EEPROM_PACKET_SIZE, pkt_int);
 
 			HAL_UART_Transmit(&huart1, (uint8_t *)str, EEPROM_PACKET_SIZE, 100);
 			if (operation_result_td == HAL_OK) {
@@ -166,7 +173,6 @@ void BoryViter_Main(void) {
 			}
 			HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		}
-		HAL_IWDG_Refresh(&hiwdg);
 		sprintf(DataChar,"\tReading from EEPROM is over.\r\n\r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	}
@@ -179,7 +185,6 @@ void BoryViter_Main(void) {
 
 	if (alarm_1_status == 1){
 		HAL_IWDG_Refresh(&hiwdg);
-		//HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
 		HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET);
 		you_can_read_from_memory_u8 = 1;
 		eeprom_button_flag = 0;
@@ -203,7 +208,7 @@ void BoryViter_Main(void) {
 		ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
 		uint16_t lux_u16 = BH1750_Main( &h1_bh1750 );
 
-		uint8_t str[32] = {0};
+		uint8_t str[EEPROM_PACKET_SIZE] = {0};
 		sprintf((char *) str, "g%02d%02d %02d%02d %04d",
 				(int) DateSt.Month,
 				(int) DateSt.Date,
