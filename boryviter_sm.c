@@ -53,13 +53,6 @@
 *						    GLOBAL VARIABLES
 **************************************************************************
 */
-
-	bh1750_struct h1_bh1750 =
-	{
-		.i2c = &hi2c1,
-		.device_i2c_address = BH1750_I2C_ADDR
-	};
-
 	uint8_t ds3231_alarm_flag		= 0 ;
 	uint8_t ds3231_alarm_1_status	= 0 ;
 	uint8_t ds3231_alarm_2_status	= 0 ;
@@ -118,11 +111,6 @@ void BoryViter_Init(void) {
 	ds3231_PrintDate( &DateSt, &huart1);
 	ds3231_PrintWeek( &DateSt, &huart1);
 	ds3231_PrintTime( &TimeSt, &huart1);
-
-	HAL_StatusTypeDef op_res_td = BH1750_init( &h1_bh1750, bh1750_one_time_h_resolutione );
-	sprintf(DataChar,"\r\nBH1750 init status: %d;\r\n", (int)op_res_td);
-	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-	if (op_res_td != 0) { HAL_Delay(10000); }
 
 	sprintf(DataChar,"\r\nPACKET_END: %d;\r\n", (int)PACKET_END);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
@@ -211,11 +199,9 @@ void BV_do_it_every_seconds (void) {
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 		ds3231_PrintTime( &TimeSt, &huart1);
 
-		uint16_t lux_u16 = 0 ;
-		HAL_StatusTypeDef op_res_td = BH1750_get_lux( &h1_bh1750, bh1750_one_time_h_resolutione, &lux_u16);
 		uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
 
-		sprintf(DataChar," Lux:%04d (res:%d); ADC:%04d; rx:%c\r\n", (int)lux_u16, (int)op_res_td, (int)adc_u32, (char)uart_rx_char);
+		sprintf(DataChar," ADC:%04d; rx:%c\r\n", (int)adc_u32, (char)uart_rx_char);
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	}
 
@@ -241,20 +227,14 @@ void BV_write_to_EEPROM (void) {
 	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
 	ds3231_GetDate(ADR_I2C_DS3231, &DateSt);
 
-	uint16_t lux_u16 = 0 ;
-	op_res_td = BH1750_get_lux( &h1_bh1750, bh1750_one_time_h_resolutione, &lux_u16);
-//	sprintf(DataChar," (bh1750_res:%d)", (int)op_res_td);
-//	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-
 	uint32_t adc_u32 = ADC1_GetValue(&hadc, ADC_CHANNEL_5);
 
 	uint8_t str[EEPROM_PACKET_SIZE] = {0};
-	sprintf((char *) str, "g%02d%02d %02d%02d %04d %04d",
+	sprintf((char *) str, "g%02d%02d %02d%02d xxxx %04d",
 			(int) DateSt.Month,
 			(int) DateSt.Date,
 			(int) TimeSt.Hours,
 			(int) TimeSt.Minutes,
-			(int) lux_u16,
 			(int) adc_u32);
 
 	str[0] = MAGIK_CHAR;
