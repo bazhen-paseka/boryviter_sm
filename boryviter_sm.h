@@ -36,6 +36,7 @@
 	#include "bh1750_sm.h"
 	#include "ds3231_sm.h"
 	#include "at24cXX_sm.h"
+	#include "adc_light_stm32f103_hal_sm.h"
 
 /*
 **************************************************************************
