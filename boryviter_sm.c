@@ -69,6 +69,8 @@
 
 	uint16_t eeprom_packet_u16 = PACKET_START;
 
+	uint8_t stop_print = 0;
+
 /*
 **************************************************************************
 *                        LOCAL FUNCTION PROTOTYPES
@@ -156,9 +158,9 @@ void BoryViter_Main(void) {
 	}
 
 	if (ds3231_alarm_1_status == 1){
-		BV_do_it_every_seconds();
 		you_can_read_from_memory_flag = 1;
 		button_pressed_flag = 0;
+		BV_do_it_every_seconds();
 		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
 		ds3231_alarm_1_status = 0;
 	}
@@ -169,7 +171,7 @@ void BoryViter_Main(void) {
 		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
 	}
 
-	if (	(button_pressed_flag == 1)
+	if (	(button_pressed_flag > 0 )
 		&&	(you_can_read_from_memory_flag == 1) ) {
 		BV_read_from_EEPROM ();
 		button_pressed_flag = 0;
@@ -202,15 +204,28 @@ void BV_do_it_every_seconds (void) {
 	char DataChar[100];
 	RTC_TimeTypeDef TimeSt;
 
-	ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
-	ds3231_PrintTime( &TimeSt, &huart1);
+	uint8_t uart_rx_char = 0x30;
+	HAL_UART_Receive(&huart1, &uart_rx_char,1, 300);
 
-	uint16_t lux_u16 = 0 ;
-	HAL_StatusTypeDef op_res_td = BH1750_get_lux( &h1_bh1750, bh1750_one_time_h_resolutione, &lux_u16);
-	uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
+	if (stop_print == 0) {
+		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
+		ds3231_PrintTime( &TimeSt, &huart1);
 
-	sprintf(DataChar," Lux:%04d (res:%d); ADC:%04d; \r\n", (int)lux_u16, (int)op_res_td, (int)adc_u32);
-	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		uint16_t lux_u16 = 0 ;
+		HAL_StatusTypeDef op_res_td = BH1750_get_lux( &h1_bh1750, bh1750_one_time_h_resolutione, &lux_u16);
+		uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
+
+		sprintf(DataChar," Lux:%04d (res:%d); ADC:%04d; rx:%c\r\n", (int)lux_u16, (int)op_res_td, (int)adc_u32, (char)uart_rx_char);
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+	}
+
+	switch (uart_rx_char) {
+		case 'r': button_pressed_flag = 1 ; break;	//	'r'
+		case 'a': button_pressed_flag = 2 ; break;	//	'a'
+		case 's': stop_print = 1; 			break;
+		case 'c': stop_print = 0; 			break;
+		default : break;
+	}
 }
 //************************************************************************
 
@@ -243,12 +258,10 @@ void BV_write_to_EEPROM (void) {
 			(int) adc_u32);
 
 	str[0] = MAGIK_CHAR;
-	//uint8_t size_of_str_u8 = sizeof(str) / sizeof(str[0]);
 	uint8_t size_of_str_u8 = EEPROM_PACKET_SIZE;
 	HAL_UART_Transmit(&huart1, (uint8_t *)str, size_of_str_u8, 100);
 
-//	HAL_StatusTypeDef op_res_td = HAL_ERROR;
-//	op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
+	op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
 
 	sprintf(DataChar," (eeprom_res:%d)\r\n", (int)op_res_td );
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
@@ -265,7 +278,11 @@ void BV_read_from_EEPROM (void) {
 	sprintf(DataChar,"\r\n\tPresent %d packet. Read from EEPROM: \r\n", (int)(eeprom_packet_u16-PACKET_START));
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-	for (int pkt_int = PACKET_START; pkt_int <= PACKET_END; pkt_int++) {
+	uint16_t packet_qnt=0;
+	if (button_pressed_flag == 1) packet_qnt = eeprom_packet_u16-1;
+	if (button_pressed_flag == 2) packet_qnt = PACKET_END;
+
+	for (int pkt_int = PACKET_START; pkt_int <= packet_qnt; pkt_int++) {
 		if (pkt_int %100 == 0 ) {
 			HAL_IWDG_Refresh(&hiwdg);
 		}
