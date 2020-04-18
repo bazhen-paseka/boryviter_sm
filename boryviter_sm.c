@@ -58,18 +58,12 @@
 	uint8_t ds3231_alarm_2_status	= 0 ;
 
 	uint8_t button_pressed_flag = 0;
-	uint8_t you_can_read_from_memory_flag = 0;
-
 	uint16_t eeprom_packet_u16 = PACKET_START;
-
 	uint8_t stop_print = 0;
 
-//	extern DMA_HandleTypeDef hdma_usart1_rx;
-
-	#define RX_BUFFER_SIZE 		1
-	uint8_t rx_circular_buffer[RX_BUFFER_SIZE] = {'7'};
-
-	uint8_t previous_char = '6';
+	#define RX_BUFFER_SIZE 			1
+	uint8_t rx_circular_buffer	= 'c';
+	uint8_t previous_char 		= 's';
 
 /*
 **************************************************************************
@@ -153,7 +147,6 @@ void BoryViter_Main(void) {
 	}
 
 	if (ds3231_alarm_1_status == 1){
-		you_can_read_from_memory_flag = 1;
 		button_pressed_flag = 0;
 		BV_do_it_every_seconds();
 		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
@@ -166,14 +159,10 @@ void BoryViter_Main(void) {
 		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
 	}
 
-	if (	(button_pressed_flag > 0 )
-		&&	(you_can_read_from_memory_flag == 1) ) {
+	if (button_pressed_flag > 0 ) {
 		BV_read_from_EEPROM ();
 		button_pressed_flag = 0;
-		you_can_read_from_memory_flag = 0;
 	}
-
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, SET);
 }
 //************************************************************************
 
@@ -193,7 +182,6 @@ void BoryViter_Set_EEPROM_Button (void) {
 */
 
 void BV_do_it_every_seconds (void) {
-	HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, RESET);
 	HAL_IWDG_Refresh(&hiwdg);
 
 	char DataChar[100];
@@ -201,7 +189,7 @@ void BV_do_it_every_seconds (void) {
 
 //	uint8_t dma_counter_u8 = 0;
 //	dma_counter_u8 =  __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
-	HAL_UART_Receive_DMA(&huart1, rx_circular_buffer, RX_BUFFER_SIZE);
+	HAL_UART_Receive_DMA(&huart1, &rx_circular_buffer, RX_BUFFER_SIZE);
 
 	if (stop_print == 0) {
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
@@ -209,19 +197,19 @@ void BV_do_it_every_seconds (void) {
 
 		uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
 
-		sprintf(DataChar," ADC:%04d; cmd:%c \r\n", (int)adc_u32, (char)rx_circular_buffer[0]);
+		sprintf(DataChar," ADC:%04d; cmd:%c \r\n", (int)adc_u32, (char)rx_circular_buffer);
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	}
 
-	if (previous_char != rx_circular_buffer[0]) {
-		switch (rx_circular_buffer[0]) {
-			case 'r': button_pressed_flag = 1 ; break;	//	'r'
-			case 'a': button_pressed_flag = 2 ; break;	//	'a'
+	if (previous_char != rx_circular_buffer) {
+		switch (rx_circular_buffer) {
+			case 'r': button_pressed_flag = 1 ; break;
+			case 'a': button_pressed_flag = 2 ; break;
 			case 's': stop_print = 1; 			break;
 			case 'c': stop_print = 0; 			break;
 			default : break;
 		}
-		previous_char = rx_circular_buffer[0];
+		previous_char = rx_circular_buffer;
 	}
 
 }
