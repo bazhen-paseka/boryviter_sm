@@ -64,6 +64,13 @@
 
 	uint8_t stop_print = 0;
 
+//	extern DMA_HandleTypeDef hdma_usart1_rx;
+
+	#define RX_BUFFER_SIZE 		1
+	uint8_t rx_circular_buffer[RX_BUFFER_SIZE] = {'7'};
+
+	uint8_t previous_char = '6';
+
 /*
 **************************************************************************
 *                        LOCAL FUNCTION PROTOTYPES
@@ -192,8 +199,9 @@ void BV_do_it_every_seconds (void) {
 	char DataChar[100];
 	RTC_TimeTypeDef TimeSt;
 
-	uint8_t uart_rx_char = 0x30;
-	HAL_UART_Receive(&huart1, &uart_rx_char,1, 300);
+//	uint8_t dma_counter_u8 = 0;
+//	dma_counter_u8 =  __HAL_DMA_GET_COUNTER(&hdma_usart1_rx);
+	HAL_UART_Receive_DMA(&huart1, rx_circular_buffer, RX_BUFFER_SIZE);
 
 	if (stop_print == 0) {
 		ds3231_GetTime(ADR_I2C_DS3231, &TimeSt);
@@ -201,17 +209,21 @@ void BV_do_it_every_seconds (void) {
 
 		uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
 
-		sprintf(DataChar," ADC:%04d; rx:%c\r\n", (int)adc_u32, (char)uart_rx_char);
+		sprintf(DataChar," ADC:%04d; cmd:%c \r\n", (int)adc_u32, (char)rx_circular_buffer[0]);
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	}
 
-	switch (uart_rx_char) {
-		case 'r': button_pressed_flag = 1 ; break;	//	'r'
-		case 'a': button_pressed_flag = 2 ; break;	//	'a'
-		case 's': stop_print = 1; 			break;
-		case 'c': stop_print = 0; 			break;
-		default : break;
+	if (previous_char != rx_circular_buffer[0]) {
+		switch (rx_circular_buffer[0]) {
+			case 'r': button_pressed_flag = 1 ; break;	//	'r'
+			case 'a': button_pressed_flag = 2 ; break;	//	'a'
+			case 's': stop_print = 1; 			break;
+			case 'c': stop_print = 0; 			break;
+			default : break;
+		}
+		previous_char = rx_circular_buffer[0];
 	}
+
 }
 //************************************************************************
 
@@ -241,7 +253,7 @@ void BV_write_to_EEPROM (void) {
 	uint8_t size_of_str_u8 = EEPROM_PACKET_SIZE;
 	HAL_UART_Transmit(&huart1, (uint8_t *)str, size_of_str_u8, 100);
 
-	op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
+	//op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
 
 	sprintf(DataChar," (eeprom_res:%d)\r\n", (int)op_res_td );
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);

@@ -28,7 +28,9 @@
 	#include "gpio.h"
 	#include "usart.h"
 	#include "i2c.h"
+	#include "adc.h"
 	#include "iwdg.h"
+	#include "dma.h"
 	#include "stdio.h"
 	#include <string.h>
 
