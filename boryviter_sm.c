@@ -128,13 +128,13 @@ void BoryViter_Init(void) {
 	sprintf(DataChar, "packet in EEPROM: %d \r\n\r\n", (int)(eeprom_packet_u16-PACKET_START));
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x00);
-	ds3231_Alarm1_SetEverySeconds (ADR_I2C_DS3231);
+	ds3231_Alarm1_SetSeconds(ADR_I2C_DS3231, 0x30);
+	//ds3231_Alarm1_SetEverySeconds (ADR_I2C_DS3231);
 	ds3231_Alarm1_ClearStatusBit  (ADR_I2C_DS3231);
-	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);
-	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);
+//	ds3231_Alarm2_SetEveryMinutes (ADR_I2C_DS3231);
+//	ds3231_Alarm2_ClearStatusBit  (ADR_I2C_DS3231);
 
-	HAL_IWDG_Refresh(&hiwdg);
+	//HAL_IWDG_Refresh(&hiwdg);
 }
 //************************************************************************
 
@@ -142,7 +142,10 @@ void BoryViter_Main(void) {
 
 	if (ds3231_alarm_flag == 1) {
 		ds3231_alarm_1_status = ds3231_Get_Alarm1_Status (ADR_I2C_DS3231);
-		ds3231_alarm_2_status = ds3231_Get_Alarm2_Status (ADR_I2C_DS3231);
+	//	ds3231_alarm_2_status = ds3231_Get_Alarm2_Status (ADR_I2C_DS3231);
+		char DataChar[100];
+		sprintf(DataChar,"Alarm_flag %d %d ", (int)ds3231_alarm_1_status, (int)ds3231_alarm_2_status);
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		ds3231_alarm_flag = 0;
 	}
 
@@ -151,13 +154,39 @@ void BoryViter_Main(void) {
 		BV_do_it_every_seconds();
 		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
 		ds3231_alarm_1_status = 0;
+
+		char DataChar[100];
+		sprintf(DataChar,"Start go to sleep... ");
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		sprintf(DataChar," Zasnuli ");
+
+		HAL_Delay(1000);
+
+		PWR->CR &= ~(PWR_CR_PDDS);	/* флаг PDDS определяет выбор между Stop и Standby, его надо сбросить */
+		PWR->CR |= PWR_CR_CWUF;/* флаг Wakeup должн быть очищен, иначе есть шанс проснуться немедленно */
+		PWR->CR |= PWR_CR_LPSDSR;/* стабилизатор питания в low-power режим, у нас в Stop потребления-то почти не будет */
+		PWR->CR |= PWR_CR_ULP;		/* источник опорного напряжения Vref выключить автоматически */
+		SCB->SCR |=  (SCB_SCR_SLEEPDEEP_Msk);/* с точки зрения ядра Cortex-M, что Stop, что Standby - это режим Deep Sleep *//* поэтому надо в ядре включить Deep Sleep */
+		//	unsigned state = irq_disable();		/* выключили прерывания; пробуждению по ним это не помешает */
+		__DSB();	/* завершили незавершённые операция сохранения данных */
+		__WFI(); /* заснули */
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		/* переинициализация рабочих частот */
+	//	init_clk();
+
+		/* после просыпания восстановили прерывания */
+	//	irq_restore(state);
+
+		// __WFI();
+		//PWR_EnterSTOPMode(PWR_Regulator_LowPower, PWR_STOPEntry_WFI); // WFI
 	}
 
-	if (ds3231_alarm_2_status == 1) {
-		BV_write_to_EEPROM();
-		ds3231_alarm_2_status = 0;
-		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
-	}
+//	if (ds3231_alarm_2_status == 1) {
+//		BV_write_to_EEPROM();
+//		ds3231_alarm_2_status = 0;
+//		ds3231_Alarm2_ClearStatusBit(ADR_I2C_DS3231);
+//		__WFI();
+//	}
 
 	if (button_pressed_flag > 0 ) {
 		BV_read_from_EEPROM ();
@@ -182,7 +211,7 @@ void BoryViter_Set_EEPROM_Button (void) {
 */
 
 void BV_do_it_every_seconds (void) {
-	HAL_IWDG_Refresh(&hiwdg);
+	//HAL_IWDG_Refresh(&hiwdg);
 
 	char DataChar[100];
 	RTC_TimeTypeDef TimeSt;
@@ -263,9 +292,9 @@ void BV_read_from_EEPROM (void) {
 	if (button_pressed_flag == 2) packet_qnt = PACKET_END;
 
 	for (int pkt_int = PACKET_START; pkt_int <= packet_qnt; pkt_int++) {
-		if (pkt_int %100 == 0 ) {
-			HAL_IWDG_Refresh(&hiwdg);
-		}
+//		if (pkt_int %100 == 0 ) {
+//			HAL_IWDG_Refresh(&hiwdg);
+//		}
 		sprintf(DataChar,"%04d) ", (int)(pkt_int-PACKET_START) );
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
