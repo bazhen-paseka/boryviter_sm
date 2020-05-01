@@ -27,17 +27,11 @@
 	#include "main.h"
 	#include "gpio.h"
 	#include "usart.h"
-	#include "i2c.h"
-	#include "adc.h"
-	//#include "iwdg.h"
 	#include "dma.h"
 	#include "stdio.h"
 	#include <string.h>
 
 	#include "boryviter_local_config.h"
-	#include "ds3231_sm.h"
-	#include "at24cXX_sm.h"
-	#include "adc_light_stm32f103_hal_sm.h"
 
 /*
 **************************************************************************
@@ -72,6 +66,5 @@
 	void BoryViter_Main (void);
 
 	void BoryViter_Set_Alarm_Flag	(void);
-	void BoryViter_Set_EEPROM_Button(void);
 
 #endif /* MAX30100_SM_H_INCLUDED */
