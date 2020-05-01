@@ -28,6 +28,8 @@
 	#include "gpio.h"
 	#include "usart.h"
 	#include "dma.h"
+	#include "rtc.h"
+
 	#include "stdio.h"
 	#include <string.h>
 
