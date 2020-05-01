@@ -86,7 +86,7 @@ void BoryViter_Init(void) {
 	soft_version_arr_int[2] = ((SOFT_VERSION)      ) %10 ;
 
 	char DataChar[100];
-	sprintf(DataChar,"\r\n\tBoryViter 2020-April-10 v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n",
+	sprintf(DataChar,"\r\n\tBoryViter 2020-May-01 sleep!!! v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n",
 			soft_version_arr_int[0], soft_version_arr_int[1], soft_version_arr_int[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
@@ -155,12 +155,12 @@ void BoryViter_Main(void) {
 		ds3231_Alarm1_ClearStatusBit(ADR_I2C_DS3231);
 		ds3231_alarm_1_status = 0;
 
-		char DataChar[100];
-		sprintf(DataChar,"Start go to sleep... ");
-		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
-		sprintf(DataChar," Zasnuli ");
+		BV_write_to_EEPROM();
 
-		HAL_Delay(1000);
+		char DataChar[100];
+		sprintf(DataChar,"\r\nZasnuli...    ");
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		HAL_Delay(5000);
 
 		PWR->CR &= ~(PWR_CR_PDDS);	/* флаг PDDS определяет выбор между Stop и Standby, его надо сбросить */
 		PWR->CR |= PWR_CR_CWUF;/* флаг Wakeup должн быть очищен, иначе есть шанс проснуться немедленно */
@@ -170,6 +170,8 @@ void BoryViter_Main(void) {
 		//	unsigned state = irq_disable();		/* выключили прерывания; пробуждению по ним это не помешает */
 		__DSB();	/* завершили незавершённые операция сохранения данных */
 		__WFI(); /* заснули */
+
+		sprintf(DataChar," ... prosnulis`\r\n");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		/* переинициализация рабочих частот */
 	//	init_clk();
@@ -270,7 +272,7 @@ void BV_write_to_EEPROM (void) {
 	uint8_t size_of_str_u8 = EEPROM_PACKET_SIZE;
 	HAL_UART_Transmit(&huart1, (uint8_t *)str, size_of_str_u8, 100);
 
-	//op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
+	op_res_td = op_res_td + AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
 
 	sprintf(DataChar," (eeprom_res:%d)\r\n", (int)op_res_td );
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
