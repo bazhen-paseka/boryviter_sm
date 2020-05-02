@@ -79,7 +79,7 @@ void BoryViter_Init(void) {
 	soft_version_arr_int[2] = ((SOFT_VERSION)      ) %10 ;
 
 	char DataChar[100];
-	sprintf(DataChar,"\r\n\tBoryViter 2020-May-01 sleep!!! v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n",
+	sprintf(DataChar,"\r\n\r\n\tBoryViter 2020-May-01 sleep!!! v%d.%d.%d \r\n\tUART1 for debug on speed 115200/8-N-1\r\n",
 			soft_version_arr_int[0], soft_version_arr_int[1], soft_version_arr_int[2]);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
@@ -95,11 +95,11 @@ void BoryViter_Init(void) {
 	if ((TimeSt.Hours == 0) && (TimeSt.Minutes == 0) && (TimeSt.Seconds == 0)) {
 		DateSt.Year			=	20;
 		DateSt.Month		=	5;
-		DateSt.WeekDay		=	5;
-		DateSt.Date			=	1;
-		TimeSt.Hours		=	12;
-		TimeSt.Minutes		=	34;
-		TimeSt.Seconds		=	56;
+		DateSt.WeekDay		=	6;
+		DateSt.Date			=	2;
+		TimeSt.Hours		=	01;
+		TimeSt.Minutes		=	23;
+		TimeSt.Seconds		=	45;
 		HAL_RTC_SetTime( &hrtc, &TimeSt, RTC_FORMAT_BIN );
 		HAL_RTC_SetDate( &hrtc, &DateSt, RTC_FORMAT_BIN );
 	}
@@ -116,12 +116,14 @@ void BoryViter_Init(void) {
 			(int)TimeSt.Seconds);
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-
+	uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
+	sprintf(DataChar,"\tADC_IN5:%d\r\n", (int)adc_u32 );
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
 	sprintf(DataChar,"\tStart.");
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	ds3231_alarm_flag = 0;
-	HAL_Delay(2000);
+	HAL_Delay(1000);
 	sprintf(DataChar,"\r\nZasnuli...    ");
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	HAL_Delay(100);
@@ -141,7 +143,7 @@ void BoryViter_Main(void) {
 
 	if (ds3231_alarm_flag == 1) {
 		char DataChar[100];
-		sprintf(DataChar,"\r\nIRQ");
+		sprintf(DataChar,"\r\nEXTI4;");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		ds3231_alarm_flag = 0;
 
@@ -149,7 +151,7 @@ void BoryViter_Main(void) {
 		RTC_DateTypeDef DateSt;
 		HAL_RTC_GetTime( &hrtc, &TimeSt, RTC_FORMAT_BIN);
 		HAL_RTC_GetDate( &hrtc, &DateSt, RTC_FORMAT_BIN);
-		sprintf(DataChar,"\t%04d/%02d/%02d (%d) \t %02d:%02d:%02d\t",
+		sprintf(DataChar,"\t%04d/%02d/%02d (%d) \t %02d:%02d:%02d; ",
 				(int)(2000+DateSt.Year),
 				(int)DateSt.Month,
 				(int)DateSt.Date,
@@ -159,8 +161,12 @@ void BoryViter_Main(void) {
 				(int)TimeSt.Seconds);
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-		HAL_Delay(5000);
-		sprintf(DataChar,"Zasnuli... ");
+		uint32_t adc_u32 = ADC1_GetValue( &hadc, ADC_CHANNEL_5 );
+		sprintf(DataChar,"ADC_IN5:%04d; ", (int)adc_u32 );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+		HAL_Delay(3000);
+		sprintf(DataChar,"Zasnuli.. ");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		HAL_Delay(500);
 

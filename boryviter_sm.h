@@ -34,6 +34,7 @@
 	#include <string.h>
 
 	#include "boryviter_local_config.h"
+	#include "adc_light_stm32f103_hal_sm.h"
 
 /*
 **************************************************************************
