@@ -54,16 +54,15 @@
 **************************************************************************
 */
 	uint8_t ds3231_alarm_flag		= 0 ;
-
-	#define RX_BUFFER_SIZE 			1
-	uint8_t rx_circular_buffer	= 'c';
-	uint8_t previous_char 		= 's';
+	uint16_t eeprom_packet_u16 = PACKET_START;
 
 /*
 **************************************************************************
 *                        LOCAL FUNCTION PROTOTYPES
 **************************************************************************
 */
+
+	void BV_read_from_EEPROM (void);
 
 /*
 **************************************************************************
@@ -120,6 +119,20 @@ void BoryViter_Init(void) {
 	sprintf(DataChar,"\tADC_IN5:%d\r\n", (int)adc_u32 );
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
+	AT24cXX_scan_I2C_bus(&hi2c1, &huart1);
+	uint16_t packet = PACKET_START;
+	uint8_t packet_char = 0;
+	do {
+		uint8_t str[32] = {0};
+		AT24cXX_read_from_EEPROM(str, EEPROM_PACKET_SIZE, packet);
+		packet_char= str[0];
+		packet++;
+	} while ((packet < PACKET_END) && (packet_char==MAGIK_CHAR));	// if true - do it again
+	eeprom_packet_u16 = packet-1;
+	sprintf(DataChar, "packet in EEPROM: %d \r\n\r\n", (int)(eeprom_packet_u16-PACKET_START));
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+
 	sprintf(DataChar,"\tStart.");
 	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 	ds3231_alarm_flag = 0;
@@ -143,7 +156,7 @@ void BoryViter_Main(void) {
 
 	if (ds3231_alarm_flag == 1) {
 		char DataChar[100];
-		sprintf(DataChar,"\r\nEXTI4;");
+		sprintf(DataChar,"\r\nEXTI4 ");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		ds3231_alarm_flag = 0;
 
@@ -151,11 +164,10 @@ void BoryViter_Main(void) {
 		RTC_DateTypeDef DateSt;
 		HAL_RTC_GetTime( &hrtc, &TimeSt, RTC_FORMAT_BIN);
 		HAL_RTC_GetDate( &hrtc, &DateSt, RTC_FORMAT_BIN);
-		sprintf(DataChar,"\t%04d/%02d/%02d (%d) \t %02d:%02d:%02d; ",
+		sprintf(DataChar,"%04d/%02d/%02d %02d:%02d:%02d ",
 				(int)(2000+DateSt.Year),
 				(int)DateSt.Month,
 				(int)DateSt.Date,
-				(int)DateSt.WeekDay,
 				(int)TimeSt.Hours,
 				(int)TimeSt.Minutes,
 				(int)TimeSt.Seconds);
@@ -165,7 +177,35 @@ void BoryViter_Main(void) {
 		sprintf(DataChar,"ADC_IN5:%04d; ", (int)adc_u32 );
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 
-		HAL_Delay(3000);
+		BV_read_from_EEPROM();	// read from EEPROM
+
+		HAL_StatusTypeDef op_res_td = HAL_OK;
+		sprintf(DataChar,"%d) ", (int)(eeprom_packet_u16 - PACKET_START) );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+		uint8_t str[EEPROM_PACKET_SIZE] = {0};
+		sprintf((char *) str, "g%02d%02d %02d%02d %04d",
+				(int) DateSt.Month,
+				(int) DateSt.Date,
+				(int) TimeSt.Hours,
+				(int) TimeSt.Minutes,
+				(int) adc_u32);
+
+		str[0] = MAGIK_CHAR;
+		uint8_t size_of_str_u8 = EEPROM_PACKET_SIZE;
+		HAL_UART_Transmit(&huart1, (uint8_t *)str, size_of_str_u8, 100);
+
+		op_res_td = AT24cXX_write_to_EEPROM(str, size_of_str_u8, eeprom_packet_u16);
+
+		sprintf(DataChar," (eeprom_res:%d)\r\n", (int)op_res_td );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+		eeprom_packet_u16++;
+		if (eeprom_packet_u16 > PACKET_END) {
+			eeprom_packet_u16 = PACKET_START;
+		}
+
+
+		//	HAL_Delay(3000);
 		sprintf(DataChar,"Zasnuli.. ");
 		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
 		HAL_Delay(500);
@@ -203,3 +243,39 @@ void BoryViter_Set_Alarm_Flag (void) {
 *                           LOCAL FUNCTIONS
 **************************************************************************
 */
+
+void BV_read_from_EEPROM (void) {
+	char DataChar[100];
+	uint32_t errors_count_u32 = 0;
+	sprintf(DataChar,"\r\n\tPresent %d packet. Read from EEPROM: \r\n", (int)(eeprom_packet_u16-PACKET_START));
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+	uint16_t packet_qnt=0;
+	//	if (button_pressed_flag == 1) packet_qnt = eeprom_packet_u16-1;
+	//	if (button_pressed_flag == 2) packet_qnt = PACKET_END;
+	packet_qnt = eeprom_packet_u16-1;
+
+	for (int pkt_int = PACKET_START; pkt_int <= packet_qnt; pkt_int++) {
+//		if (pkt_int %100 == 0 ) {
+//			HAL_IWDG_Refresh(&hiwdg);
+//		}
+		sprintf(DataChar,"%04d) ", (int)(pkt_int-PACKET_START) );
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+
+		uint8_t str[EEPROM_PACKET_SIZE] = {0};
+		HAL_StatusTypeDef op_res_td = HAL_ERROR;
+		op_res_td = AT24cXX_read_from_EEPROM(str, EEPROM_PACKET_SIZE, pkt_int);
+
+		HAL_UART_Transmit(&huart1, (uint8_t *)str, EEPROM_PACKET_SIZE, 100);
+		if (op_res_td == HAL_OK) {
+			sprintf(DataChar,"\r\n");
+		} else {
+			sprintf(DataChar," (readStatus:%d)\r\n", (int)op_res_td );
+			errors_count_u32++;
+		}
+		HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+	}
+	sprintf(DataChar,"\tReading from EEPROM is over. Errors = %d;\r\n\r\n", (int)errors_count_u32);
+	HAL_UART_Transmit(&huart1, (uint8_t *)DataChar, strlen(DataChar), 100);
+}
+//************************************************************************
